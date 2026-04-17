@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Moon, Sun, Clock, MapPin, Compass, Settings, 
   Menu, X, ChevronRight, Info, Calendar, Download, 
-  Trash2, RefreshCw, BarChart3, Star, Search
+  Trash2, RefreshCw, BarChart3, Star, Search, Circle
 } from 'lucide-react';
 import { cn, formatTime } from './lib/utils';
 import { calculatePrayerTimes, type PrayerTimes, type LocationParams } from './lib/prayer/engine';
@@ -16,20 +16,13 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('prayer');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [date, setDate] = useState(new Date());
+  const [permissionStatus, setPermissionStatus] = useState<'pending' | 'granted' | 'denied' | 'loading'>('loading');
   
-  // Default location: Mecca
-  const [location, setLocation] = useState<LocationParams>({
-    lat: 21.4225,
-    lon: 39.8262,
-    elev: 277,
-    tz: 3,
-    pressure: 1013.25,
-    temperature: 20
-  });
+  // Initial location null to prevent Makkah default
+  const [location, setLocation] = useState<LocationParams | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(null);
 
-  const [locationName, setLocationName] = useState('Masjid al-Haram, Mecca');
-
-  // Load saved location
+  // Load saved location or request geolocation
   useEffect(() => {
     const saved = localStorage.getItem('celestial_location');
     if (saved) {
@@ -37,11 +30,55 @@ export default function App() {
         const parsed = JSON.parse(saved);
         setLocation(parsed.params);
         setLocationName(parsed.name);
+        setPermissionStatus('granted');
       } catch (e) {
-        console.error("Failed to load saved location", e);
+        setPermissionStatus('pending');
       }
+    } else {
+      setPermissionStatus('pending');
     }
   }, []);
+
+  useEffect(() => {
+    if (permissionStatus === 'pending') {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            const params: LocationParams = {
+              lat: latitude,
+              lon: longitude,
+              elev: 0,
+              tz: Math.round(longitude / 15),
+              pressure: 1013.25,
+              temperature: 20
+            };
+            setLocation(params);
+            
+            // Reverse Geocoding to get City Name
+            try {
+              const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+              const data = await res.json();
+              const city = data.address.city || data.address.town || data.address.village || data.address.suburb || "Detected Location";
+              setLocationName(city);
+              localStorage.setItem('celestial_location', JSON.stringify({ params, name: city }));
+            } catch (e) {
+              const fallback = `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+              setLocationName(fallback);
+              localStorage.setItem('celestial_location', JSON.stringify({ params, name: fallback }));
+            }
+            
+            setPermissionStatus('granted');
+          },
+          () => {
+            setPermissionStatus('denied');
+          }
+        );
+      } else {
+        setPermissionStatus('denied');
+      }
+    }
+  }, [permissionStatus]);
 
   // Update clock
   useEffect(() => {
@@ -50,6 +87,7 @@ export default function App() {
   }, []);
 
   const prayerTimes = useMemo(() => {
+    if (!location) return null;
     return calculatePrayerTimes(date, location);
   }, [date, location]);
 
@@ -57,8 +95,49 @@ export default function App() {
 
   const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
+  if (permissionStatus === 'loading' || (permissionStatus === 'pending' && !location)) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-[#0F172A] p-8 text-center space-y-6">
+        <div className="w-20 h-20 bg-[#38BDF8]/10 rounded-full flex items-center justify-center animate-pulse">
+          <MapPin size={40} className="text-[#38BDF8]" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-white tracking-tight">Detecting Location</h1>
+          <p className="text-[#94A3B8] text-sm max-w-xs">We need your coordinates to calculate high-precision prayer times for your exact position.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Fallback for denied permission
+  if (permissionStatus === 'denied' && !location) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-[#0F172A] p-8 text-center space-y-6">
+        <div className="w-20 h-20 bg-[#F87171]/10 rounded-full flex items-center justify-center">
+          <X size={40} className="text-[#F87171]" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold text-white tracking-tight">Location Required</h1>
+          <p className="text-[#94A3B8] text-sm max-w-xs">Please provide a location manually to continue.</p>
+        </div>
+        <button 
+          onClick={() => {
+            setLocation({ lat: 21.4225, lon: 39.8262, elev: 277, tz: 3, pressure: 1013.25, temperature: 20 });
+            setLocationName('Masjid al-Haram, Mecca');
+            setPermissionStatus('granted');
+          }}
+          className="bg-[#38BDF8] text-[#0F172A] px-8 py-3 rounded-xl font-bold uppercase tracking-widest text-xs transition-transform active:scale-95"
+        >
+          Set Default (Mecca)
+        </button>
+      </div>
+    );
+  }
+
+  if (!location || !locationName) return null;
+
   return (
-    <div className="flex flex-col h-screen overflow-hidden text-[#F1F5F9]">
+    <div className="flex flex-col h-screen overflow-hidden text-[#F1F5F9] bg-[#0F172A]">
       {/* Sidebar Overlay */}
       <div 
         className={cn(
@@ -68,30 +147,30 @@ export default function App() {
         onClick={toggleSidebar}
       />
 
-      {/* Header */}
-      <header className="h-20 shrink-0 px-10 flex items-center justify-between border-b border-[#94A3B8]/10 z-30">
+      {/* Header - Compact for mobile */}
+      <header className="h-14 lg:h-20 shrink-0 px-6 lg:px-10 flex items-center justify-between border-b border-[#94A3B8]/10 z-30 bg-[#0F172A]/80 backdrop-blur-md">
         <div className="flex items-center gap-4">
           <button 
             className="p-2 -ml-2 text-white/60 hover:text-white lg:hidden transition-colors"
             onClick={toggleSidebar}
           >
-            <Menu size={24} />
+            <Menu size={20} />
           </button>
-          <div className="logo flex items-center gap-3 text-2xl font-bold tracking-tight">
-            <div className="w-8 h-8 bg-[#38BDF8] rounded-lg flex items-center justify-center">
-              <Star size={18} className="text-[#0F172A] fill-current" />
+          <div className="logo flex items-center gap-2 lg:gap-3 text-lg lg:text-2xl font-bold tracking-tight">
+            <div className="w-6 h-6 lg:w-8 lg:h-8 bg-[#38BDF8] rounded-lg flex items-center justify-center">
+              <Star size={14} className="text-[#0F172A] fill-current" />
             </div>
             AL-WAQT
           </div>
         </div>
 
-        <div className="location-info text-right">
-          <div className="text-lg font-medium flex items-center justify-end gap-2">
-            <MapPin size={16} className="text-[#38BDF8]" />
+        <div className="location-info text-right hidden sm:block">
+          <div className="text-base lg:text-lg font-medium flex items-center justify-end gap-2">
+            <MapPin size={14} className="text-[#38BDF8]" />
             {locationName.split(',')[0]}
           </div>
-          <div className="text-sm text-[#94A3B8]">
-            {format(date, 'EEEE, dd MMMM yyyy')} • 16 Dhul-Qi'dah 1445
+          <div className="text-[10px] lg:text-sm text-[#94A3B8]">
+            {format(date, 'EEEE, dd MMMM yyyy')}
           </div>
         </div>
       </header>
@@ -100,11 +179,23 @@ export default function App() {
         {/* Sidebar */}
         <aside 
           className={cn(
-            "fixed inset-y-0 left-0 z-50 w-72 sidebar-glass transition-transform lg:relative lg:translate-x-0",
+            "fixed inset-y-0 left-0 z-50 w-72 sidebar-glass transition-transform lg:relative lg:translate-x-0 border-r border-white/5",
             isSidebarOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
-          <div className="flex flex-col h-full pt-20 lg:pt-0">
+          <div className="flex flex-col h-full">
+            <div className="p-6 flex items-center justify-between lg:hidden border-b border-white/5">
+              <div className="text-lg font-bold tracking-tight flex items-center gap-2">
+                 <Star size={18} className="text-[#38BDF8]" />
+                 MENU
+              </div>
+              <button 
+                onClick={toggleSidebar}
+                className="p-2 bg-white/5 rounded-lg text-white/60 hover:text-white"
+              >
+                <X size={20} />
+              </button>
+            </div>
             <nav className="flex-1 px-4 py-8 space-y-2">
               <NavItem 
                 active={activeTab === 'prayer'} 
@@ -186,8 +277,8 @@ export default function App() {
         </main>
       </div>
 
-      {/* Footer */}
-      <footer className="h-[60px] shrink-0 px-10 flex items-center justify-between border-t border-[#94A3B8]/10 bg-[#0F172A]/50 text-[#94A3B8] text-xs">
+      {/* Footer - Hidden on mobile */}
+      <footer className="h-[60px] shrink-0 px-10 hidden md:flex items-center justify-between border-t border-[#94A3B8]/10 bg-[#0F172A]/50 text-[#94A3B8] text-xs">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 px-3 py-1 bg-[#38BDF8]/10 rounded-full text-[#38BDF8] font-medium">
             <span className="font-bold italic">f(x)</span>
@@ -238,15 +329,16 @@ function PrayerTab({
   locationParams: LocationParams,
   toggleSidebar: () => void
 }) {
-  const prayerSequence: { label: string, time: number, icon?: React.ReactNode }[] = [
-    { label: 'Fajr', time: times.fajr, icon: <Moon size={18} /> },
-    { label: 'Sunrise', time: times.sunrise, icon: <Sun size={18} /> },
-    { label: 'Dhuhr', time: times.zuhr, icon: <Sun size={18} /> },
-    { label: 'Asr', time: times.asr, icon: <Sun size={18} /> },
-    { label: 'Maghrib', time: times.maghrib, icon: <Sun size={18} /> },
-    { label: 'Isha', time: times.isha, icon: <Moon size={18} /> },
+  const prayerSequence: { label: string, time: number, icon?: React.ReactNode, isStandalone?: boolean }[] = [
+    { label: 'Fajr', time: times.fajr, icon: <div className="w-1.5 h-1.5 rounded-full bg-[#1E293B]" /> },
+    { label: 'Sunrise', time: times.sunrise, icon: null, isStandalone: true },
+    { label: 'Zuhr', time: times.zuhr, icon: <div className="w-3 h-3 rounded-full border-2 border-[#1E293B] flex items-center justify-center"><div className="w-1 h-1 bg-[#1E293B] rounded-full" /></div> },
+    { label: 'Asr', time: times.asr, icon: <div className="w-3 h-3 border-2 border-[#1E293B] rounded-full" /> },
+    { label: 'Maghrib', time: times.maghrib, icon: <Circle size={12} className="text-[#1E293B]" /> },
+    { label: 'Isha', time: times.isha, icon: <Moon size={14} className="text-[#1E293B]" /> },
   ];
 
+  const displayList = prayerSequence.filter(p => p.label !== 'Sunrise');
   const now = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
   
   let currentPrayerIndex = -1;
@@ -280,9 +372,9 @@ function PrayerTab({
   const offset = circumference - (progressPercent / 100) * circumference;
 
   return (
-    <div className="flex flex-col h-full bg-[#F1F5F9]">
-      {/* Hero Section with Image Background */}
-      <section className="relative h-[45vh] min-h-[380px] w-full overflow-hidden">
+    <div className="flex flex-col min-h-full bg-[#F1F5F9] relative">
+      {/* Scrollable Hero Section */}
+      <section className="relative h-[48vh] min-h-[380px] w-full z-40">
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url('https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&q=80&w=1920')` }}
@@ -291,7 +383,7 @@ function PrayerTab({
         </div>
 
         <div className="relative z-10 h-full flex flex-col p-6 text-white">
-          <div className="flex justify-between items-center mb-10">
+          <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
               <button 
                 onClick={toggleSidebar}
@@ -302,7 +394,7 @@ function PrayerTab({
             </div>
             <div className="flex gap-2">
               <button className="px-3 py-1.5 bg-white/10 rounded-full text-[10px] font-bold uppercase tracking-wider border border-white/20">
-                Change Theme
+                Theme
               </button>
               <button className="p-1.5 bg-white/10 rounded-full border border-white/20">
                 <Info size={16} />
@@ -310,83 +402,77 @@ function PrayerTab({
             </div>
           </div>
 
-          <div className="flex-1 flex items-center justify-between">
-            {/* Circular Indicator */}
-            <div className="relative flex items-center justify-center w-36 h-36">
+          <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-8 px-4">
+            {/* Circular Indicator - Optimized for mobile */}
+            <div className="relative flex items-center justify-center w-40 h-40 sm:w-44 sm:h-44 shrink-0 transition-all">
               <svg className="w-full h-full -rotate-90">
                 <circle
                   className="text-white/10"
-                  strokeWidth="3"
+                  strokeWidth="4"
                   stroke="currentColor"
                   fill="transparent"
                   r={radius}
-                  cx="72"
-                  cy="72"
+                  cx="50%"
+                  cy="50%"
                 />
                 <circle
                   className="text-[#38BDF8] transition-all duration-1000"
-                  strokeWidth="3"
+                  strokeWidth="4"
                   strokeDasharray={circumference}
                   strokeDashoffset={offset}
                   strokeLinecap="round"
                   stroke="currentColor"
                   fill="transparent"
                   r={radius}
-                  cx="72"
-                  cy="72"
+                  cx="50%"
+                  cy="50%"
                 />
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                <span className="text-[#FACC15] text-xs font-black uppercase tracking-widest leading-tight">{currentPrayer.label}</span>
-                <span className="text-[#38BDF8] text-[8px] font-bold uppercase tracking-widest mt-0.5">Time Remaining</span>
+                <span className="text-[#EF4444] text-base sm:text-lg font-bold tracking-tight leading-none mb-0.5">
+                  {currentPrayer.label === 'Sunrise' ? 'Sunrise' : currentPrayer.label}
+                </span>
+                <span className="text-[7px] sm:text-[9px] text-white/50 uppercase font-black tracking-widest mb-1.5">Remaining</span>
+                <span className="text-sm sm:text-base font-mono font-black tabular-nums text-[#38BDF8] drop-shadow-sm">
+                   {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                </span>
               </div>
             </div>
 
             {/* Date and Location Panel */}
-            <div className="text-right space-y-4 max-w-[200px]">
-              <div className="flex items-center justify-end gap-2 text-sm">
-                <span className="font-bold text-[#FACC15]">{hijriDate.day}, {hijriDate.monthName}, {hijriDate.year}</span>
-                <Moon size={16} className="text-[#FACC15]" />
+            <div className="text-center sm:text-right space-y-3 max-w-full sm:max-w-[200px]">
+              <div className="flex flex-col items-center sm:items-end">
+                <div className="flex items-center justify-center sm:justify-end gap-2 text-sm">
+                  <span className="font-bold text-[#FACC15]">{hijriDate.day}, {hijriDate.monthName}, {hijriDate.year}</span>
+                  <Moon size={16} className="text-[#FACC15]" />
+                </div>
+                <div className="flex items-center justify-center sm:justify-end gap-2 text-xs font-medium text-white/60">
+                  <span>{format(date, 'eee d MMMM yyyy')}</span>
+                </div>
               </div>
-              <div className="flex items-center justify-end gap-2 text-sm font-medium">
-                <span>{format(date, 'eee d MMMM yyyy')}</span>
-                <Calendar size={16} className="text-white/60" />
-              </div>
-              <div className="flex items-center justify-end gap-2 text-[10px] text-white/60 font-medium">
-                <span>GMT: {locationParams.tz.toFixed(1)}, Height: {locationParams.elev} feet</span>
-                <BarChart3 size={14} />
-              </div>
-              <div className="flex items-center justify-end gap-2 text-sm font-bold">
-                <span className="truncate">{locationName.split(',')[0]}</span>
-                <MapPin size={16} className="text-[#38BDF8]" />
+              
+              <div className="pt-2 border-t border-white/10">
+                <div className="flex items-center justify-center sm:justify-end gap-2 text-sm font-bold">
+                  <span className="truncate max-w-[150px]">{locationName.split(',')[0]}</span>
+                  <MapPin size={16} className="text-[#38BDF8]" />
+                </div>
+                <div className="text-[9px] text-white/40 font-medium uppercase tracking-wider">
+                  {locationParams.lat.toFixed(2)}N, {locationParams.lon.toFixed(2)}E
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Alert Banner */}
-      <div className="bg-[#B91C1C] text-white text-[10px] font-bold py-2 text-center uppercase tracking-widest z-20">
-        Use Auto Location for more accuracy!
-      </div>
 
-      {/* Main Content Area */}
-      <section className="flex-1 -mt-6 rounded-t-[2.5rem] bg-[#F1F5F9] z-30 overflow-y-auto px-6 py-8">
-        {/* Ad/Featured Section */}
-        <div className="bg-white rounded-2xl p-4 flex items-center justify-between mb-8 shadow-sm border border-slate-200 overflow-hidden relative group cursor-pointer">
-          <div className="relative z-10">
-            <div className="text-[#059669] text-xl font-bold tracking-tight">DUROOD</div>
-            <div className="text-[#059669] text-2xl font-black tracking-tighter leading-none">SECTION</div>
-          </div>
-          <div className="flex flex-col items-end z-10">
-             <span className="text-[#059669] text-2xl font-urdu font-bold">درود سیکشن</span>
-          </div>
-          <div className="absolute right-0 top-0 bottom-0 w-24 bg-[#059669]/5 -skew-x-12 translate-x-12" />
-        </div>
+      {/* Scrollable Content Area */}
+      <section className="flex-1 -mt-6 rounded-t-[2.5rem] bg-[#F1F5F9] z-50 px-6 pt-10 pb-8 shadow-2xl">
+        {/* Ad/Featured Section - REMOVED AS REQUESTED */}
 
         {/* Prayer List */}
-        <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 p-6 space-y-2">
-          {prayerSequence.map((p) => (
+        <div className="bg-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-slate-100 px-6 py-4 space-y-1 mb-6">
+          {displayList.map((p) => (
             <React.Fragment key={p.label}>
               <PrayerRow 
                 label={p.label} 
@@ -399,11 +485,8 @@ function PrayerTab({
           ))}
         </div>
 
-        <div className="mt-8 text-center pb-12">
-            <div className="text-[10px] text-[#94A3B8] uppercase tracking-[0.2em] font-bold mb-1">Time Remaining to {nextEvent.label}</div>
-            <div className="text-2xl font-bold font-mono text-[#0F172A]">
-               {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-            </div>
+        <div className="text-center pb-8 opacity-40">
+            <div className="text-[9px] text-slate-500 uppercase tracking-[0.3em] font-bold">Al-Waqt Precision Engine</div>
         </div>
       </section>
     </div>
@@ -423,42 +506,43 @@ function PrayerRow({
   active?: boolean, 
   times: PrayerTimes 
 }) {
-  // For Fajr we show range Sunrise
   const isFajr = label === 'Fajr';
-  const displayTime = isFajr 
-    ? `${formatTime(time)} AM — ${formatTime(times.sunrise)} AM` 
-    : formatTime(time);
+  const isAsr = label === 'Asr';
+  const isIsha = label === 'Isha';
 
   return (
     <div className={cn(
-      "flex justify-between items-center py-5 transition-all duration-300 border-b border-slate-50 last:border-0",
-      active && "bg-slate-50/50 -mx-6 px-14 border-b-0"
+      "flex justify-between items-center py-4 transition-all duration-300 border-b border-slate-50 last:border-0",
+      active && "bg-slate-50/80 -mx-6 px-10 border-b-0 rounded-xl"
     )}>
-      <div className="flex items-center gap-4">
-        <div className={cn(
-          "w-8 h-8 rounded-full flex items-center justify-center transition-all",
-          active ? "bg-[#0F172A] text-white scale-110 shadow-lg" : "bg-slate-100 text-[#94A3B8]"
-        )}>
+      <div className="flex items-center gap-3 min-w-[100px]">
+        <div className="w-8 h-8 flex items-center justify-center">
           {icon}
         </div>
-        <span className={cn(
-          "text-sm font-bold tracking-tight transition-colors",
-          active ? "text-[#0F172A]" : "text-slate-600"
-        )}>
-          {label} {label === 'Asr' && '— Hanafi'} {label === 'Isha' && '— Hanafi'}
-        </span>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className={cn(
-          "text-sm font-bold font-mono tracking-tight tabular-nums",
-          active ? "text-[#0F172A]" : "text-slate-500"
-        )}>
-          {displayTime}
+        <div className="flex flex-col">
+          <span className="text-sm sm:text-base font-black text-[#1E293B] tracking-tight uppercase">
+            {label}
+          </span>
+          {(isAsr || isIsha) && <span className="text-[#64748B] font-bold text-[8px] uppercase tracking-widest opacity-60">Hanafi</span>}
         </div>
-        <ChevronRight size={14} className={cn(
-          "transition-all",
-          active ? "text-[#0F172A]" : "text-slate-300"
-        )} />
+      </div>
+      
+      <div className="flex-1 flex flex-col items-end gap-1">
+        <div className="flex items-center gap-1 font-mono text-sm font-black tracking-tight text-[#1E293B]">
+          {formatTime(time)}
+        </div>
+        
+        {isFajr && (
+          <div className="flex items-center gap-1.5 text-[#64748B] text-[10px] font-bold">
+            <span className="text-[#CBD5E1]">|</span>
+            <span className="uppercase tracking-tighter opacity-70">SunRise</span>
+            <span className="font-mono text-[11px]">{formatTime(times.sunrise)}</span>
+          </div>
+        )}
+      </div>
+
+      <div className="w-5 h-5 flex items-center justify-center ml-2">
+          <div className="border-l-[6px] border-l-[#1E293B] border-y-[4px] border-y-transparent ml-1" />
       </div>
     </div>
   );
@@ -634,7 +718,7 @@ function DataRow({ label, value }: { label: string, value: string }) {
   );
 }
 
-function LocationTab({ setLocation, setLocationName, location, locationName }: { setLocation: (l: LocationParams) => void, setLocationName: (n: string) => void, location: LocationParams, locationName: string }) {
+function LocationTab({ setLocation, setLocationName, location, locationName }: { setLocation: (l: LocationParams) => void, setLocationName: (n: string) => void, location: LocationParams | null, locationName: string | null }) {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -674,17 +758,30 @@ function LocationTab({ setLocation, setLocationName, location, locationName }: {
 
     setLoading(true);
     navigator.geolocation.getCurrentPosition(
-      (position) => {
+      async (position) => {
         const { latitude, longitude } = position.coords;
         const params: LocationParams = {
-          ...location,
           lat: latitude,
           lon: longitude,
-          tz: Math.round(longitude / 15)
+          elev: 0,
+          tz: Math.round(longitude / 15),
+          pressure: 1013.25,
+          temperature: 20
         };
         setLocation(params);
-        setLocationName(`Detected: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
-        localStorage.setItem('celestial_location', JSON.stringify({ params, name: `Detected: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}` }));
+        
+        // Reverse Geocoding
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`);
+          const data = await res.json();
+          const city = data.address.city || data.address.town || data.address.village || data.address.suburb || `${latitude.toFixed(2)}, ${longitude.toFixed(2)}`;
+          setLocationName(city);
+          localStorage.setItem('celestial_location', JSON.stringify({ params, name: city }));
+        } catch (e) {
+          setLocationName(`${latitude.toFixed(2)}, ${longitude.toFixed(2)}`);
+          localStorage.setItem('celestial_location', JSON.stringify({ params, name: `${latitude.toFixed(2)}, ${longitude.toFixed(2)}` }));
+        }
+        
         setLoading(false);
       },
       (error) => {
@@ -700,15 +797,18 @@ function LocationTab({ setLocation, setLocationName, location, locationName }: {
     const lon = parseFloat(place.lon);
     
     const params: LocationParams = {
-      ...location,
       lat,
       lon,
-      tz: Math.round(lon / 15)
+      elev: location?.elev || 0,
+      tz: Math.round(lon / 15),
+      pressure: location?.pressure || 1013.25,
+      temperature: location?.temperature || 20
     };
     
     setLocation(params);
-    setLocationName(place.display_name);
-    localStorage.setItem('celestial_location', JSON.stringify({ params, name: place.display_name }));
+    const name = place.display_name;
+    setLocationName(name);
+    localStorage.setItem('celestial_location', JSON.stringify({ params, name }));
     setResults([]);
     setSearch('');
   };
@@ -716,22 +816,31 @@ function LocationTab({ setLocation, setLocationName, location, locationName }: {
   const updateManual = (field: keyof LocationParams, val: string) => {
     const num = parseFloat(val);
     if (isNaN(num)) return;
-    const newParams = { ...location, [field]: num };
+    const newParams = { 
+      lat: location?.lat || 0,
+      lon: location?.lon || 0,
+      elev: location?.elev || 0,
+      tz: location?.tz || 0,
+      pressure: location?.pressure || 1013.25,
+      temperature: location?.temperature || 20,
+      ...location, 
+      [field]: num 
+    };
     setLocation(newParams);
     localStorage.setItem('celestial_location', JSON.stringify({ params: newParams, name: locationName }));
   };
 
   return (
-    <div className="panel-card p-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex justify-between items-start">
-        <div className="space-y-2">
-          <h3 className="text-2xl font-bold tracking-tight text-white">Geographic Data</h3>
-          <p className="text-[#94A3B8] text-sm">Configure your coordinates for sub-arcsecond astronomical calculations.</p>
+    <div className="panel-card p-6 md:p-10 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 overflow-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+        <div className="space-y-1">
+          <h3 className="text-xl md:text-2xl font-bold tracking-tight text-white">Geographic Data</h3>
+          <p className="text-[#94A3B8] text-xs md:text-sm">Configure coordinates for high-precision calculations.</p>
         </div>
         <button 
           onClick={() => setIsManual(!isManual)}
           className={cn(
-            "px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all",
+            "px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all w-full sm:w-auto",
             isManual ? "bg-[#38BDF8] text-[#0F172A]" : "bg-white/5 text-[#94A3B8] hover:bg-white/10"
           )}
         >
@@ -741,37 +850,37 @@ function LocationTab({ setLocation, setLocationName, location, locationName }: {
       
       {!isManual ? (
         <div className="space-y-4">
-          <div className="flex gap-3">
+          <div className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#94A3B8]" size={18} />
               <input 
                 type="text" 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search city, neighborhood, or landmark..." 
-                className="w-full bg-[#0F172A] border border-[#94A3B8]/20 rounded-xl py-3.5 pl-12 pr-4 text-sm focus:outline-none focus:border-[#38BDF8] transition-colors placeholder:text-[#94A3B8]/30"
+                placeholder="Search city or landmark..." 
+                className="w-full bg-[#0F172A] border border-[#94A3B8]/20 rounded-xl py-3 pl-11 pr-4 text-xs focus:outline-none focus:border-[#38BDF8] transition-colors"
               />
               {loading && <RefreshCw size={14} className="absolute right-4 top-1/2 -translate-y-1/2 animate-spin text-[#38BDF8]" />}
             </div>
             <button 
               onClick={detectLocation}
               disabled={loading}
-              className="bg-white/5 border border-white/10 hover:bg-white/10 text-white px-6 rounded-xl transition-all flex items-center gap-2 group"
+              className="bg-white/5 border border-white/10 hover:bg-white/10 text-white py-3 px-6 rounded-xl transition-all flex items-center justify-center gap-2 group shrink-0"
             >
-              <MapPin size={16} className="text-[#38BDF8] group-hover:scale-110 transition-transform" />
-              <span className="text-xs font-bold uppercase tracking-widest">Detect</span>
+              <MapPin size={16} className="text-[#38BDF8]" />
+              <span className="text-[10px] font-bold uppercase tracking-widest">Detect Me</span>
             </button>
           </div>
 
           {results.length > 0 && (
-            <div className="bg-[#0F172A] border border-[#94A3B8]/20 rounded-xl overflow-hidden divide-y divide-[#94A3B8]/10 shadow-xl">
+            <div className="bg-[#0F172A] border border-[#94A3B8]/20 rounded-xl overflow-hidden divide-y divide-[#94A3B8]/10 shadow-xl max-h-[300px] overflow-y-auto">
               {results.map((r, i) => (
                 <button 
                   key={i}
                   onClick={() => selectLocation(r)}
-                  className="w-full text-left p-4 hover:bg-[#38BDF8]/5 text-sm flex items-center gap-3 group transition-colors"
+                  className="w-full text-left p-4 hover:bg-[#38BDF8]/5 text-xs flex items-center gap-3 transition-colors"
                  >
-                  <MapPin size={16} className="text-[#94A3B8] group-hover:text-[#38BDF8]" />
+                  <MapPin size={16} className="text-[#94A3B8] shrink-0" />
                   <span className="truncate">{r.display_name}</span>
                 </button>
               ))}
@@ -784,45 +893,45 @@ function LocationTab({ setLocation, setLocationName, location, locationName }: {
             <label className="text-[10px] text-[#94A3B8]/40 uppercase font-bold tracking-[0.2em] ml-1">Location Label</label>
             <input 
               type="text" 
-              value={locationName}
+              value={locationName || ''}
               onChange={(e) => {
                 setLocationName(e.target.value);
-                localStorage.setItem('celestial_location', JSON.stringify({ params: location, name: e.target.value }));
+                if (location) localStorage.setItem('celestial_location', JSON.stringify({ params: location, name: e.target.value }));
               }}
-              placeholder="e.g. My Home, Karachi..." 
-              className="w-full bg-[#0F172A] border border-[#94A3B8]/20 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#38BDF8] transition-colors"
+              placeholder="e.g. My Home..." 
+              className="w-full bg-[#0F172A] border border-[#94A3B8]/20 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-[#38BDF8]"
             />
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
-            <ManualInput label="Latitude" value={location.lat} onChange={(v) => updateManual('lat', v)} />
-            <ManualInput label="Longitude" value={location.lon} onChange={(v) => updateManual('lon', v)} />
-            <ManualInput label="Timezone" value={location.tz} onChange={(v) => updateManual('tz', v)} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+            <ManualInput label="Latitude" value={location?.lat || 0} onChange={(v) => updateManual('lat', v)} />
+            <ManualInput label="Longitude" value={location?.lon || 0} onChange={(v) => updateManual('lon', v)} />
+            <ManualInput label="Timezone" value={location?.tz || 0} onChange={(v) => updateManual('tz', v)} />
           </div>
         </div>
       )}
 
       {/* Advanced Parameters */}
       <div className="pt-8 border-t border-[#94A3B8]/10">
-        <h4 className="text-[10px] font-bold text-[#38BDF8] uppercase tracking-[0.2em] mb-6">In-Situ Parameters</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <ManualInput label="Elevation (m)" value={location.elev} onChange={(v) => updateManual('elev', v)} />
-          <ManualInput label="Pressure (mbr)" value={location.pressure ?? 1013.25} onChange={(v) => updateManual('pressure', v)} />
-          <ManualInput label="Temperature (°C)" value={location.temperature ?? 20} onChange={(v) => updateManual('temperature', v)} />
+        <h4 className="text-[10px] font-bold text-[#38BDF8] uppercase tracking-[0.2em] mb-6">Environment</h4>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          <ManualInput label="Elevation (m)" value={location?.elev || 0} onChange={(v) => updateManual('elev', v)} />
+          <ManualInput label="Pressure (mbr)" value={location?.pressure ?? 1013.25} onChange={(v) => updateManual('pressure', v)} />
+          <ManualInput label="Temperature (°C)" value={location?.temperature ?? 20} onChange={(v) => updateManual('temperature', v)} />
         </div>
       </div>
-
+      {/* Environment Footer */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-[#94A3B8]/10 opacity-60">
         <div>
           <span className="text-[10px] text-[#94A3B8]/40 uppercase font-bold tracking-widest block mb-1">Current Lat</span>
-          <span className="text-sm font-mono text-white/90 tabular-nums">{location.lat.toFixed(6)}°</span>
+          <span className="text-sm font-mono text-white/90 tabular-nums">{location?.lat?.toFixed(6) || '0.000000'}°</span>
         </div>
         <div>
           <span className="text-[10px] text-[#94A3B8]/40 uppercase font-bold tracking-widest block mb-1">Current Lon</span>
-          <span className="text-sm font-mono text-white/90 tabular-nums">{location.lon.toFixed(6)}°</span>
+          <span className="text-sm font-mono text-white/90 tabular-nums">{location?.lon?.toFixed(6) || '0.000000'}°</span>
         </div>
         <div>
           <span className="text-[10px] text-[#94A3B8]/40 uppercase font-bold tracking-widest block mb-1">GMT Offset</span>
-          <span className="text-sm font-mono text-white/90 tabular-nums">{location.tz >= 0 ? '+' : ''}{location.tz}:00</span>
+          <span className="text-sm font-mono text-white/90 tabular-nums">{location ? (location.tz >= 0 ? '+' : '') + location.tz : '+0'}:00</span>
         </div>
         <div>
           <span className="text-[10px] text-[#94A3B8]/40 uppercase font-bold tracking-widest block mb-1">Refraction Factor</span>

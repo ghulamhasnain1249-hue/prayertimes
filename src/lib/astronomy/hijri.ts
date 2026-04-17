@@ -28,47 +28,42 @@ const HIJRI_MONTH_NAMES_URDU = [
  * @param adjustment Manual day adjustment (default: 0)
  */
 export function getHijriDate(date: Date, adjustment: number = 0): HijriDate {
-  let day = date.getDate();
-  let month = date.getMonth();
-  let year = date.getFullYear();
-
-  if (month < 2) {
-    year -= 1;
-    month += 12;
-  }
-
-  const a = Math.floor(year / 100);
-  const b = 2 - a + Math.floor(a / 4);
-  const jd = Math.floor(365.25 * (year + 4716)) + Math.floor(30.6001 * (month + 1)) + day + b - 1524;
-
-  const epoch = jd - 1948440 + adjustment;
-  const hYear = Math.floor((epoch - 1) / 354.367);
-  const hMonth = Math.floor(((epoch - Math.floor(hYear * 354.367) - 0.5) / 29.5));
-  const hDay = Math.floor(epoch - Math.floor(hYear * 354.367) - Math.floor(hMonth * 29.5) + 0.5);
-
-  const finalYear = hYear + 1;
-  const finalMonth = hMonth + 1;
-  const finalDay = hDay + 1;
-
-  // Manual overflow correction for months
-  let adjustedYear = finalYear;
-  let adjustedMonth = finalMonth;
-  let adjustedDay = finalDay;
-
-  if (adjustedDay > 30) {
-    adjustedDay -= 30;
-    adjustedMonth += 1;
+  // Use a more robust arithmetic calculation based on the 1948439.5 epoch
+  // 17 April 2026 logic test: JD 2461148 -> ~29 Shawwal 1447
+  
+  const jd = Math.floor(date.getTime() / 86400000) + 2440587.5 + adjustment;
+  const epoch = 1948439.5;
+  const delta = jd - epoch;
+  
+  // Average length of Islamic year is 354.36667 days
+  const hYear = Math.floor(delta / 354.36667) + 1;
+  const daysInPreviousYears = Math.floor((hYear - 1) * 354.36667);
+  const dayInYear = Math.floor(delta - daysInPreviousYears);
+  
+  // Approximation for months (alternating 30 and 29 days)
+  let hMonth = 1;
+  let remainingDays = dayInYear;
+  
+  for (let m = 1; m <= 12; m++) {
+    const monthLength = (m % 2 === 1) ? 30 : 29;
+    if (remainingDays <= monthLength) {
+      hMonth = m;
+      break;
+    }
+    remainingDays -= monthLength;
+    if (m === 12) {
+      // Leap year handling if remainingDays still > 0
+      hYear + 1;
+      hMonth = 1;
+    }
   }
   
-  if (adjustedMonth > 12) {
-    adjustedMonth -= 12;
-    adjustedYear += 1;
-  }
+  const hDay = remainingDays || 1;
 
   return {
-    day: adjustedDay,
-    month: adjustedMonth,
-    year: adjustedYear,
-    monthName: HIJRI_MONTH_NAMES_URDU[adjustedMonth - 1]
+    day: hDay,
+    month: hMonth,
+    year: hYear,
+    monthName: HIJRI_MONTH_NAMES_URDU[hMonth - 1] || "Unknown"
   };
 }
