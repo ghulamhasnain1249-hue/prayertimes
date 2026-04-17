@@ -10,34 +10,106 @@
 :root {
   --bg-color: #0F172A;
   --card-bg: #1E293B;
+  --bg-glass: rgba(15, 23, 42, 0.7);
   --accent-primary: #38BDF8;
   --accent-gold: #FACC15;
   --text-main: #F1F5F9;
   --text-dim: #94A3B8;
   --border-color: rgba(148, 163, 184, 0.1);
+  --blur: 12px;
+  --radius: 16px;
+}
+
+[data-theme="obsidian"] {
+  --bg-color: #000000;
+  --card-bg: #121212;
+  --bg-glass: rgba(0, 0, 0, 0.85);
+  --accent-primary: #94A3B8;
+  --accent-gold: #FACC15;
+  --text-main: #FFFFFF;
+  --text-dim: #64748B;
+  --border-color: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="golden"] {
+  --bg-color: #FDFCF0;
+  --card-bg: #FFFFFF;
+  --bg-glass: rgba(255, 255, 255, 0.8);
+  --accent-primary: #B45309;
+  --accent-gold: #D97706;
+  --text-main: #1A120B;
+  --text-dim: #78350F;
+  --border-color: rgba(180, 83, 9, 0.1);
+}
+
+[data-theme="ocean"] {
+  --bg-color: #011627;
+  --card-bg: #0B1E2E;
+  --bg-glass: rgba(1, 22, 39, 0.8);
+  --accent-primary: #00D1FF;
+  --accent-gold: #FFD700;
+  --text-main: #E6F1FF;
+  --text-dim: #71B1FF;
+  --border-color: rgba(0, 209, 255, 0.15);
+}
+
+[data-theme="emerald"] {
+  --bg-color: #061A1A;
+  --card-bg: #0D2626;
+  --bg-glass: rgba(6, 26, 26, 0.85);
+  --accent-primary: #10B981;
+  --accent-gold: #FACC15;
+  --text-main: #F0FDF4;
+  --text-dim: #34D399;
+  --border-color: rgba(16, 185, 129, 0.15);
+}
+
+[data-theme="crimson"] {
+  --bg-color: #1A0505;
+  --card-bg: #260A0A;
+  --bg-glass: rgba(26, 5, 5, 0.85);
+  --accent-primary: #FDA4AF;
+  --accent-gold: #FFA500;
+  --text-main: #FFF1F2;
+  --text-dim: #F43F5E;
+  --border-color: rgba(244, 63, 94, 0.2);
+}
+
+[data-theme="noir"] {
+  --bg-color: #1E1E1E;
+  --card-bg: #2D2D2D;
+  --bg-glass: rgba(30, 30, 30, 0.9);
+  --accent-primary: #E5E7EB;
+  --accent-gold: #9CA3AF;
+  --text-main: #F9FAFB;
+  --text-dim: #9CA3AF;
+  --border-color: rgba(255, 255, 255, 0.05);
 }
 
 body {
   background-color: var(--bg-color);
+  background-image: linear-gradient(135deg, var(--bg-color) 0%, transparent 100%);
   color: var(--text-main);
   min-height: 100vh;
   font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  transition: background-color 0.5s ease;
 }
 
 .panel-card {
   background-color: var(--card-bg);
+  backdrop-filter: blur(var(--blur));
   border: 1px solid var(--border-color);
-  border-radius: 16px;
+  border-radius: var(--radius);
 }
 
 .next-prayer-gradient {
-  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  background: var(--card-bg);
   border: 1px solid var(--border-color);
 }
 
 .sidebar-glass {
-  background: rgba(15, 23, 42, 0.8);
-  backdrop-filter: blur(12px);
+  background: var(--bg-glass);
+  backdrop-filter: blur(var(--blur));
   border-right: 1px solid var(--border-color);
 }
 
