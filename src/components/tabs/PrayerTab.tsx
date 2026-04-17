@@ -1,6 +1,7 @@
 import React from 'react';
 import { Moon, Menu, Info, MapPin, Circle, Sun } from 'lucide-react';
 import { format } from 'date-fns';
+import { motion, AnimatePresence } from 'motion/react';
 import { cn, formatTime } from '../../lib/utils';
 import { PrayerTimes, LocationParams } from '../../lib/prayer/engine';
 import { Tab } from '../../types';
@@ -33,7 +34,7 @@ export function PrayerTab({
     { label: 'Isha', time: times.isha, icon: <Moon size={14} className="text-current" /> },
   ];
 
-  const displayList = prayerSequence.filter(p => p.label !== 'Sunrise');
+  const displayList = prayerSequence.filter(p => !p.isStandalone);
   const now = date.getHours() + date.getMinutes() / 60 + date.getSeconds() / 3600;
   
   let currentPrayerIndex = -1;
@@ -54,16 +55,28 @@ export function PrayerTab({
   const nextPrayerIndex = (currentPrayerIndex + 1) % prayerSequence.length;
   const nextEvent = prayerSequence[nextPrayerIndex];
 
-  const diff = nextEvent.time - now;
-  const totalSeconds = (diff < 0 ? diff + 24 : diff) * 3600;
+  // Interval Progress Calculation
+  const startT = currentPrayer.time;
+  let endT = nextEvent.time;
+  if (endT < startT) endT += 24;
+  
+  let currentT = now;
+  if (currentT < startT && currentPrayerIndex === lastIndex) currentT += 24;
+
+  const totalDuration = endT - startT;
+  const elapsed = currentT - startT;
+  const intervalProgress = Math.max(0, Math.min(1, elapsed / totalDuration));
+
+  const diff = endT - currentT;
+  const totalSeconds = diff * 3600;
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = Math.floor(totalSeconds % 60);
 
-  const radius = 70;
+  const radius = 80;
   const circumference = 2 * Math.PI * radius;
-  const progressPercent = ((60 - seconds) / 60) * 100;
-  const offset = circumference - (progressPercent / 100) * circumference;
+  // Deplete the circle as time remaining decreases
+  const dashOffset = circumference * intervalProgress;
 
   return (
     <div className="flex flex-col min-h-full relative bg-[var(--bg-color)]">
@@ -102,7 +115,12 @@ export function PrayerTab({
 
           <div className="flex-1 flex flex-col-reverse sm:flex-row items-center justify-center gap-8 sm:gap-12 px-4 pb-12">
             {/* Meta Info */}
-            <div className="text-center sm:text-right space-y-3 sm:space-y-4">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="text-center sm:text-right space-y-3 sm:space-y-4"
+            >
               <div className="space-y-0.5 sm:space-y-1">
                 <div className="flex items-center justify-center sm:justify-end gap-2 text-sm sm:text-base font-bold text-[var(--accent-gold)]">
                   {hijriDate.day} {hijriDate.monthName} {hijriDate.year} <Moon size={16} className="sm:w-[18px] sm:h-[18px] fill-current" />
@@ -120,25 +138,42 @@ export function PrayerTab({
                   {locationParams.lat.toFixed(4)}°N • {locationParams.lon.toFixed(4)}°E
                 </div>
               </div>
-            </div>
+            </motion.div>
 
             {/* Circular Progress */}
-            <div className="relative flex items-center justify-center w-56 h-56 sm:w-72 sm:h-72 shrink-0 transition-all duration-700">
+            <div className="relative flex items-center justify-center w-56 h-56 sm:w-80 sm:h-80 shrink-0 transition-all duration-700">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
+                {/* Background path with subtle dash pattern */}
                 <circle 
                   className="text-white/5" 
-                  strokeWidth="4" 
+                  strokeWidth="2" 
                   stroke="currentColor" 
                   fill="transparent" 
                   r={radius} 
                   cx="100" 
                   cy="100" 
                 />
-                <circle
-                  className="text-[var(--accent-primary)] transition-all duration-1000"
-                  strokeWidth="4"
+                {/* Animated Progress Circle */}
+                <motion.circle
+                  className="text-[var(--accent-primary)]"
+                  strokeWidth="3"
                   strokeDasharray={circumference}
-                  strokeDashoffset={offset}
+                  animate={{ strokeDashoffset: circumference - dashOffset }}
+                  transition={{ duration: 0.5, ease: "linear" }}
+                  strokeLinecap="round"
+                  stroke="currentColor"
+                  fill="transparent"
+                  r={radius} 
+                  cx="100" 
+                  cy="100" 
+                />
+                
+                {/* Glow Effect */}
+                <circle
+                  className="text-[var(--accent-primary)] opacity-20 blur-[6px]"
+                  strokeWidth="6"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={circumference - dashOffset}
                   strokeLinecap="round"
                   stroke="currentColor"
                   fill="transparent"
@@ -147,14 +182,30 @@ export function PrayerTab({
                   cy="100" 
                 />
               </svg>
+              
               <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
-                <span className="text-[#EF4444] text-2xl sm:text-3xl font-black tracking-widest leading-none mb-1 uppercase">
-                  {currentPrayer.label}
-                </span>
+                <AnimatePresence mode="wait">
+                  <motion.span 
+                    key={currentPrayer.label}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="text-[#EF4444] text-2xl sm:text-3xl font-black tracking-widest leading-none mb-1 uppercase"
+                  >
+                    {currentPrayer.label}
+                  </motion.span>
+                </AnimatePresence>
+                
                 <span className="text-[10px] sm:text-xs text-white/50 uppercase font-black tracking-[0.4em] mb-4">Time Left</span>
-                <span className="text-3xl sm:text-4xl font-mono font-black tabular-nums text-[var(--accent-primary)] drop-shadow-[0_0_15px_rgba(56,189,248,0.4)]">
-                   {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-                </span>
+                
+                <div className="flex items-baseline gap-1">
+                  <motion.div 
+                    layout
+                    className="text-3xl sm:text-5xl font-mono font-black tabular-nums text-[var(--accent-primary)] drop-shadow-[0_0_20px_rgba(56,189,248,0.5)]"
+                  >
+                    {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
+                  </motion.div>
+                </div>
               </div>
             </div>
           </div>

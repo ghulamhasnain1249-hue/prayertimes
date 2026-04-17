@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Moon, Sun, Clock, MapPin, Compass, 
-  Menu, X, Info, Star, Download, RefreshCw
+  Menu, X, Info, Star, Download, RefreshCw, Calendar
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import { calculatePrayerTimes, type LocationParams } from './lib/prayer/engine';
@@ -23,6 +23,7 @@ import { SunTab } from './components/tabs/SunTab';
 import { MoonTab } from './components/tabs/MoonTab';
 import { AuthorTab } from './components/tabs/AuthorTab';
 import { UpdateTab } from './components/tabs/UpdateTab';
+import { MonthlyTab } from './components/tabs/MonthlyTab';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('prayer');
@@ -237,6 +238,12 @@ export default function App() {
                 onClick={() => { setActiveTab('prayer'); setIsSidebarOpen(false); }} 
               />
               <NavItem 
+                active={activeTab === 'monthly'} 
+                icon={<Calendar size={20} />} 
+                label="Monthly Atlas" 
+                onClick={() => { setActiveTab('monthly'); setIsSidebarOpen(false); }} 
+              />
+              <NavItem 
                 active={activeTab === 'location'} 
                 icon={<MapPin size={20} />} 
                 label="Spatial Data" 
@@ -339,6 +346,13 @@ export default function App() {
                     deferredPrompt={deferredPrompt}
                     onInstall={handleInstallClick}
                     onUpdate={handleUpdateCheck}
+                    onClose={() => setActiveTab('prayer')}
+                  />
+                )}
+                {activeTab === 'monthly' && (
+                  <MonthlyTab 
+                    locationParams={location}
+                    locationName={locationName}
                     onClose={() => setActiveTab('prayer')}
                   />
                 )}
