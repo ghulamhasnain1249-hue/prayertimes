@@ -94,7 +94,19 @@ function solveTime(jd0: number, deltaT: number, params: LocationParams, targetZe
 export function calculatePrayerTimes(date: Date, loc: LocationParams, asrFactor: 1 | 2 = 2, ishaAngle: number = 18): PrayerTimes {
     const jd0 = getJulianDate(new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0)));
     const deltaT = getDeltaT(date.getFullYear());
-    const dip = (58.2 / 3600) * Math.sqrt(loc.elev);
+    
+    // Atmospheric Refraction at Horizon (34 arcminutes standard at 1013.25 mb and 10C)
+    // Refraction = R * (P / 1010) * (283 / (273 + T))
+    const pressure = loc.pressure ?? 1013.25;
+    const temperature = loc.temperature ?? 10;
+    const fPT = (pressure / 1010) * (283 / (273 + temperature));
+    const R = (34 / 60) * fPT;
+    
+    // Horizon Dip in degrees: 0.0293 * sqrt(elevation_meters)
+    const dip = 0.0293 * Math.sqrt(loc.elev);
+
+    // Apparent zenith for sunrise/sunset (90 + sunRadius + refraction + dip)
+    const getRisingSettingZenith = (sun: any) => 90 + sun.sd + R + dip;
 
     // Zuhr (Noon)
     const sunNoon = getSunApparent(jd0 + (12 - loc.lon/15)/24, deltaT);
@@ -104,10 +116,10 @@ export function calculatePrayerTimes(date: Date, loc: LocationParams, asrFactor:
     const fajr = solveTime(jd0, deltaT, loc, () => 90 + 18, -1, 6);
 
     // Sunrise
-    const sunrise = solveTime(jd0, deltaT, loc, (sun) => 90 + 34/60 + 9/3600 + sun.sd - sun.hp + dip, -1, 6);
+    const sunrise = solveTime(jd0, deltaT, loc, getRisingSettingZenith, -1, 6);
 
     // Maghrib (Sunset)
-    const maghrib = solveTime(jd0, deltaT, loc, (sun) => 90 + 34/60 + 9/3600 + sun.sd - sun.hp + dip, 1, 6);
+    const maghrib = solveTime(jd0, deltaT, loc, getRisingSettingZenith, 1, 6);
 
     // Dhuha (Dahwa e Kubra - midpoint of Fajr and Maghrib)
     const dhuha = (fajr + maghrib) / 2;
@@ -116,7 +128,6 @@ export function calculatePrayerTimes(date: Date, loc: LocationParams, asrFactor:
     const sunZuhr = getSunApparent(jd0 + (zuhr - loc.tz)/24, deltaT);
     const zenithZuhr = loc.lat - sunZuhr.dec;
     const asrZenith = Math.atan(Math.tan(Math.abs(zenithZuhr) * D2R) + asrFactor) * R2D;
-    // (Asr also has refraction but for base precision we use the geometric zenith)
     const asr = solveTime(jd0, deltaT, loc, () => asrZenith, 1, 3);
 
     // Isha
