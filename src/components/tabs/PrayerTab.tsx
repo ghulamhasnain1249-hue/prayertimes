@@ -14,6 +14,8 @@ interface PrayerTabProps {
   locationParams: LocationParams;
   toggleSidebar: () => void;
   setActiveTab: (t: Tab) => void;
+  juristicMethod: 'hanafi' | 'shaafi';
+  setJuristicMethod: (m: 'hanafi' | 'shaafi') => void;
 }
 
 export function PrayerTab({ 
@@ -23,7 +25,9 @@ export function PrayerTab({
   hijriDate, 
   locationParams,
   toggleSidebar,
-  setActiveTab
+  setActiveTab,
+  juristicMethod,
+  setJuristicMethod
 }: PrayerTabProps) {
   const prayerSequence = [
     { label: 'Fajr', time: times.fajr, icon: <div className="w-1.5 h-1.5 rounded-full bg-current" /> },
@@ -91,13 +95,7 @@ export function PrayerTab({
 
         <div className="relative z-10 h-full flex flex-col p-6 text-white">
           <div className="flex justify-between items-center mb-6">
-            <button 
-              onClick={toggleSidebar}
-              className="p-3 bg-white/10 rounded-2xl lg:hidden active:scale-90 transition-transform"
-            >
-              <Menu size={20} />
-            </button>
-            <div className="flex gap-3">
+            <div className="flex gap-3 ml-auto">
               <button 
                 onClick={() => setActiveTab('themes')}
                 className="px-4 py-2 bg-[var(--accent-primary)] text-[var(--bg-color)] rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
@@ -224,6 +222,8 @@ export function PrayerTab({
                   icon={p.icon}
                   active={p.label === currentPrayer.label}
                   times={times}
+                  juristicMethod={juristicMethod}
+                  setJuristicMethod={setJuristicMethod}
                 />
               </React.Fragment>
             ))}
@@ -242,13 +242,17 @@ function PrayerRow({
   time, 
   icon, 
   active, 
-  times 
+  times,
+  juristicMethod,
+  setJuristicMethod
 }: { 
   label: string, 
   time: number, 
   icon?: React.ReactNode, 
   active?: boolean, 
-  times: PrayerTimes 
+  times: PrayerTimes,
+  juristicMethod: 'hanafi' | 'shaafi',
+  setJuristicMethod: (m: 'hanafi' | 'shaafi') => void
 }) {
   const isFajr = label === 'Fajr';
   const isAsr = label === 'Asr';
@@ -270,12 +274,31 @@ function PrayerRow({
           <span className="text-sm sm:text-lg font-black text-[var(--text-main)] tracking-tighter uppercase">
             {label}
           </span>
-          {(isAsr || isIsha) && <span className="text-[var(--text-dim)] font-black text-[7px] uppercase tracking-[0.2em] opacity-40">Hanafi Method</span>}
+          {(isAsr || isIsha) && (
+            <button 
+              onClick={() => setJuristicMethod(juristicMethod === 'hanafi' ? 'shaafi' : 'hanafi')}
+              className="text-left group"
+            >
+              <span className="text-[var(--text-dim)] font-black text-[7px] uppercase tracking-[0.2em] opacity-40 group-hover:opacity-100 group-hover:text-[var(--accent-primary)] transition-all flex items-center gap-1">
+                {juristicMethod === 'hanafi' ? 'Hanafi Method' : 'Shaafi Method'}
+                <span className="text-[6px] opacity-30 group-hover:rotate-180 transition-transform">▼</span>
+              </span>
+            </button>
+          )}
         </div>
       </div>
       
       <div className="flex flex-col items-end gap-1">
-        <div className="font-mono text-base font-black tracking-tight text-[var(--text-main)] tabular-nums">
+        {label === 'Zuhr' && (
+          <div className="flex items-center gap-2 text-[var(--text-dim)]/50 text-[9px] font-black uppercase tracking-tight mb-0.5">
+            <span>Dhahwa</span>
+            <span className="font-mono text-[10px] text-[var(--text-main)]/60">{formatTime(times.dhahwa)}</span>
+          </div>
+        )}
+        <div className={cn(
+          "font-mono text-base font-black tracking-tight text-[var(--text-main)] tabular-nums",
+          label === 'Zuhr' && "text-[var(--text-main)]"
+        )}>
           {formatTime(time)}
         </div>
         {isFajr && (

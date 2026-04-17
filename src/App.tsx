@@ -30,6 +30,7 @@ export default function App() {
   const [theme, setTheme] = useState<ThemeType>('default');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [date, setDate] = useState(new Date());
+  const [juristicMethod, setJuristicMethod] = useState<'hanafi' | 'shaafi'>('hanafi');
   
   // PWA Installation State
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -64,11 +65,16 @@ export default function App() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.getRegistration().then(registration => {
         if (registration) {
-          registration.update();
-          // Optionally show a toast or alert
-          alert("Checking for cosmic updates...");
+          registration.update().then(() => {
+            alert("Celestial update synchronized. Force refreshing engine...");
+            window.location.reload();
+          });
+        } else {
+          window.location.reload();
         }
       });
+    } else {
+      window.location.reload();
     }
   };
   const [permissionStatus, setPermissionStatus] = useState<'pending' | 'granted' | 'denied' | 'loading'>('loading');
@@ -142,8 +148,10 @@ export default function App() {
 
   const prayerTimes = useMemo(() => {
     if (!location) return null;
-    return calculatePrayerTimes(date, location);
-  }, [date, location]);
+    const asrFactor = juristicMethod === 'hanafi' ? 2 : 1;
+    const ishaAngle = juristicMethod === 'hanafi' ? 18 : 12;
+    return calculatePrayerTimes(date, location, asrFactor, ishaAngle);
+  }, [date, location, juristicMethod]);
 
   const hijriDate = useMemo(() => getHijriDate(date), [date]);
 
@@ -308,56 +316,59 @@ export default function App() {
         {/* Dynamic Route View */}
         <main className="flex-1 overflow-y-auto bg-[var(--bg-color)] scroll-smooth">
           <div className="h-full">
-            {activeTab === 'prayer' ? (
-              <PrayerTab 
-                times={prayerTimes!} 
-                locationName={locationName} 
-                date={date} 
-                hijriDate={hijriDate} 
-                locationParams={location} 
-                toggleSidebar={toggleSidebar}
-                setActiveTab={setActiveTab}
-              />
-            ) : (
-              <div className="p-6 md:p-14 max-w-5xl mx-auto pb-24">
-                {activeTab === 'location' && (
-                  <LocationTab 
-                    setLocation={setLocation} 
-                    setLocationName={setLocationName} 
-                    location={location} 
-                    locationName={locationName}
-                    onClose={() => setActiveTab('prayer')}
+                {activeTab === 'prayer' ? (
+                  <PrayerTab 
+                    times={prayerTimes!} 
+                    locationName={locationName} 
+                    date={date} 
+                    hijriDate={hijriDate} 
+                    locationParams={location} 
+                    toggleSidebar={toggleSidebar}
+                    setActiveTab={setActiveTab}
+                    juristicMethod={juristicMethod}
+                    setJuristicMethod={setJuristicMethod}
                   />
+                ) : (
+                  <div className="p-6 md:p-14 max-w-5xl mx-auto pb-24">
+                    {activeTab === 'location' && (
+                      <LocationTab 
+                        setLocation={setLocation} 
+                        setLocationName={setLocationName} 
+                        location={location} 
+                        locationName={locationName}
+                        onClose={() => setActiveTab('prayer')}
+                      />
+                    )}
+                    {activeTab === 'sun' && <SunTab date={date} location={location} onClose={() => setActiveTab('prayer')} />}
+                    {activeTab === 'moon' && <MoonTab date={date} location={location} onClose={() => setActiveTab('prayer')} />}
+                    {activeTab === 'qibla' && <QiblaTab location={location} onClose={() => setActiveTab('prayer')} />}
+                    {activeTab === 'themes' && (
+                      <ThemesTab 
+                        currentTheme={theme} 
+                        setTheme={setTheme} 
+                        onClose={() => setActiveTab('prayer')}
+                      />
+                    )}
+                    {activeTab === 'author' && <AuthorTab onClose={() => setActiveTab('prayer')} />}
+                    {activeTab === 'update' && (
+                      <UpdateTab 
+                        isStandalone={isStandalone}
+                        deferredPrompt={deferredPrompt}
+                        onInstall={handleInstallClick}
+                        onUpdate={handleUpdateCheck}
+                        onClose={() => setActiveTab('prayer')}
+                      />
+                    )}
+                    {activeTab === 'monthly' && (
+                      <MonthlyTab 
+                        locationParams={location}
+                        locationName={locationName}
+                        onClose={() => setActiveTab('prayer')}
+                        juristicMethod={juristicMethod}
+                      />
+                    )}
+                  </div>
                 )}
-                {activeTab === 'sun' && <SunTab date={date} location={location} onClose={() => setActiveTab('prayer')} />}
-                {activeTab === 'moon' && <MoonTab date={date} location={location} onClose={() => setActiveTab('prayer')} />}
-                {activeTab === 'qibla' && <QiblaTab location={location} onClose={() => setActiveTab('prayer')} />}
-                {activeTab === 'themes' && (
-                  <ThemesTab 
-                    currentTheme={theme} 
-                    setTheme={setTheme} 
-                    onClose={() => setActiveTab('prayer')}
-                  />
-                )}
-                {activeTab === 'author' && <AuthorTab onClose={() => setActiveTab('prayer')} />}
-                {activeTab === 'update' && (
-                  <UpdateTab 
-                    isStandalone={isStandalone}
-                    deferredPrompt={deferredPrompt}
-                    onInstall={handleInstallClick}
-                    onUpdate={handleUpdateCheck}
-                    onClose={() => setActiveTab('prayer')}
-                  />
-                )}
-                {activeTab === 'monthly' && (
-                  <MonthlyTab 
-                    locationParams={location}
-                    locationName={locationName}
-                    onClose={() => setActiveTab('prayer')}
-                  />
-                )}
-              </div>
-            )}
           </div>
         </main>
       </div>

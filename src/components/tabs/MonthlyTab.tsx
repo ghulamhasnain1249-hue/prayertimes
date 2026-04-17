@@ -8,9 +8,10 @@ interface MonthlyTabProps {
   locationParams: LocationParams;
   locationName: string;
   onClose: () => void;
+  juristicMethod: 'hanafi' | 'shaafi';
 }
 
-export function MonthlyTab({ locationParams, locationName, onClose }: MonthlyTabProps) {
+export function MonthlyTab({ locationParams, locationName, onClose, juristicMethod }: MonthlyTabProps) {
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const monthData = useMemo(() => {
@@ -19,13 +20,15 @@ export function MonthlyTab({ locationParams, locationName, onClose }: MonthlyTab
     const days = eachDayOfInterval({ start, end });
 
     return days.map(day => {
-      const times = calculatePrayerTimes(day, locationParams);
+      const asrFactor = juristicMethod === 'hanafi' ? 2 : 1;
+      const ishaAngle = juristicMethod === 'hanafi' ? 18 : 12;
+      const times = calculatePrayerTimes(day, locationParams, asrFactor, ishaAngle);
       return {
         date: day,
         times
       };
     });
-  }, [currentDate, locationParams]);
+  }, [currentDate, locationParams, juristicMethod]);
 
   const changeMonth = (offset: number) => {
     setCurrentDate(prev => {
@@ -87,9 +90,10 @@ export function MonthlyTab({ locationParams, locationName, onClose }: MonthlyTab
         <table className="w-full text-left border-collapse min-w-[600px]">
           <thead className="sticky top-0 z-10">
             <tr className="bg-[var(--bg-color)]/80 backdrop-blur-md border-b border-white/10">
-              <th className="p-4 text-[9px] font-black uppercase tracking-widest text-[var(--text-dim)] opacity-40">Date</th>
+              <th className="p-4 text-[9px] font-black uppercase tracking-widest text-[var(--text-dim)] opacity-40 sticky left-0 bg-[var(--bg-color)]/80 z-20">Date</th>
               <th className="p-4 text-[9px] font-black uppercase tracking-widest text-[var(--accent-primary)]">Fajr</th>
               <th className="p-4 text-[9px] font-black uppercase tracking-widest text-[var(--text-dim)]/60">Sunrise</th>
+              <th className="p-4 text-[9px] font-black uppercase tracking-widest text-orange-400">Dhahwa</th>
               <th className="p-4 text-[9px] font-black uppercase tracking-widest text-[var(--accent-primary)]">Zuhr</th>
               <th className="p-4 text-[9px] font-black uppercase tracking-widest text-[var(--accent-primary)]">Asr</th>
               <th className="p-4 text-[9px] font-black uppercase tracking-widest text-[var(--accent-primary)]">Maghrib</th>
@@ -110,7 +114,10 @@ export function MonthlyTab({ locationParams, locationName, onClose }: MonthlyTab
                     isToday && "bg-[var(--accent-primary)]/5"
                   )}
                 >
-                  <td className="p-4">
+                  <td className={cn(
+                    "p-4 sticky left-0 z-10",
+                    isToday ? "bg-[var(--accent-primary)]/10 backdrop-blur-sm" : "bg-[var(--bg-color)]/80 backdrop-blur-sm"
+                  )}>
                     <div className="flex flex-col">
                       <span className={cn(
                         "text-xs font-black tracking-tighter uppercase italic",
@@ -126,8 +133,11 @@ export function MonthlyTab({ locationParams, locationName, onClose }: MonthlyTab
                   <td className="p-4 font-mono text-xs font-bold tabular-nums text-[var(--text-main)]/80 group-hover:text-[var(--text-main)] transition-colors">
                     {formatTime(t.fajr)}
                   </td>
-                  <td className="p-4 font-mono text-xs font-medium tabular-nums text-[var(--text-dim)]/40 italic">
+                  <td className="p-4 font-mono text-[10px] font-medium tabular-nums text-[var(--text-dim)]/40 italic">
                     {formatTime(t.sunrise)}
+                  </td>
+                  <td className="p-4 font-mono text-[10px] font-black tabular-nums text-orange-400/60">
+                    {formatTime(t.dhahwa)}
                   </td>
                   <td className="p-4 font-mono text-xs font-bold tabular-nums text-[var(--text-main)]/80 group-hover:text-[var(--text-main)] transition-colors">
                     {formatTime(t.zuhr)}

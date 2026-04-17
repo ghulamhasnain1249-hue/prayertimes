@@ -13,7 +13,7 @@ const R2D = 180 / Math.PI;
 export interface PrayerTimes {
     fajr: number;
     sunrise: number;
-    dhuha: number;
+    dhahwa: number;
     zuhr: number;
     asr: number;
     maghrib: number;
@@ -121,8 +121,8 @@ export function calculatePrayerTimes(date: Date, loc: LocationParams, asrFactor:
     // Maghrib (Sunset)
     const maghrib = solveTime(jd0, deltaT, loc, getRisingSettingZenith, 1, 6);
 
-    // Dhuha (Dahwa e Kubra - midpoint of Fajr and Maghrib)
-    const dhuha = (fajr + maghrib) / 2;
+    // Dhahwa-al-Kubra (midpoint of Fajr and Maghrib)
+    const dhahwa = (fajr + maghrib) / 2;
 
     // Asr
     const sunZuhr = getSunApparent(jd0 + (zuhr - loc.tz)/24, deltaT);
@@ -133,5 +133,5 @@ export function calculatePrayerTimes(date: Date, loc: LocationParams, asrFactor:
     // Isha
     const isha = solveTime(jd0, deltaT, loc, () => 90 + ishaAngle, 1, 6);
 
-    return { fajr, sunrise, dhuha, zuhr, asr, maghrib, isha };
+    return { fajr, sunrise, dhahwa, zuhr, asr, maghrib, isha };
 }
