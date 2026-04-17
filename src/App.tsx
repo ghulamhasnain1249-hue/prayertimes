@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Moon, Sun, Clock, MapPin, Compass, 
-  Menu, X, Info, Star
+  Menu, X, Info, Star, Download, RefreshCw
 } from 'lucide-react';
 import { cn } from './lib/utils';
 import { calculatePrayerTimes, type LocationParams } from './lib/prayer/engine';
@@ -22,12 +22,54 @@ import { ThemesTab } from './components/tabs/ThemesTab';
 import { SunTab } from './components/tabs/SunTab';
 import { MoonTab } from './components/tabs/MoonTab';
 import { AuthorTab } from './components/tabs/AuthorTab';
+import { UpdateTab } from './components/tabs/UpdateTab';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<Tab>('prayer');
   const [theme, setTheme] = useState<ThemeType>('default');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [date, setDate] = useState(new Date());
+  
+  // PWA Installation State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isStandalone, setIsStandalone] = useState(false);
+
+  useEffect(() => {
+    // Check if already installed
+    if (window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone) {
+      setIsStandalone(true);
+    }
+
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
+      setDeferredPrompt(null);
+      setIsStandalone(true);
+    }
+  };
+
+  const handleUpdateCheck = () => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then(registration => {
+        if (registration) {
+          registration.update();
+          // Optionally show a toast or alert
+          alert("Checking for cosmic updates...");
+        }
+      });
+    }
+  };
   const [permissionStatus, setPermissionStatus] = useState<'pending' | 'granted' | 'denied' | 'loading'>('loading');
   
   const [location, setLocation] = useState<LocationParams | null>(null);
@@ -230,6 +272,16 @@ export default function App() {
               />
               
               <div className="pt-10 pb-4 px-5">
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--text-dim)] opacity-30">PWA Maintenance</span>
+              </div>
+              <NavItem 
+                active={activeTab === 'update'} 
+                icon={<Download size={20} />} 
+                label="Update" 
+                onClick={() => { setActiveTab('update'); setIsSidebarOpen(false); }} 
+              />
+
+              <div className="pt-10 pb-4 px-5">
                 <span className="text-[10px] font-black uppercase tracking-[0.4em] text-[var(--text-dim)] opacity-30">Information</span>
               </div>
               <NavItem 
@@ -281,6 +333,15 @@ export default function App() {
                   />
                 )}
                 {activeTab === 'author' && <AuthorTab onClose={() => setActiveTab('prayer')} />}
+                {activeTab === 'update' && (
+                  <UpdateTab 
+                    isStandalone={isStandalone}
+                    deferredPrompt={deferredPrompt}
+                    onInstall={handleInstallClick}
+                    onUpdate={handleUpdateCheck}
+                    onClose={() => setActiveTab('prayer')}
+                  />
+                )}
               </div>
             )}
           </div>

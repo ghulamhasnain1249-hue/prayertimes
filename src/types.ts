@@ -1,4 +1,4 @@
-export type Tab = 'prayer' | 'location' | 'qibla' | 'themes' | 'sun' | 'moon' | 'author';
+export type Tab = 'prayer' | 'location' | 'qibla' | 'themes' | 'sun' | 'moon' | 'author' | 'update';
 
 export type ThemeType = 'default' | 'obsidian' | 'golden' | 'ocean' | 'emerald' | 'crimson' | 'noir';
 
