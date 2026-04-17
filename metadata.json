@@ -1,0 +1,8 @@
+{
+  "name": "Celestial Prayer Times",
+  "description": "High-precision astronomical calculation engine for prayer times and lunar visibility using IAU 2000/2006 models.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": []
+}
