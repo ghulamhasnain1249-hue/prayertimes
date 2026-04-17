@@ -1,10 +1,18 @@
 import React from 'react';
-import { Star } from 'lucide-react';
+import { Star, X } from 'lucide-react';
 
-export function AuthorTab() {
+export function AuthorTab({ onClose }: { onClose: () => void }) {
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 text-center">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 text-center relative">
       <div className="panel-card p-16 rounded-[4rem] flex flex-col items-center gap-8 relative overflow-hidden">
+        {/* Close Button */}
+        <button 
+          onClick={onClose}
+          className="absolute top-8 right-8 p-3 bg-white/5 hover:bg-white/10 rounded-full text-[var(--text-dim)] transition-colors z-30"
+        >
+          <X size={24} />
+        </button>
+
         {/* Decorative background star */}
         <Star className="absolute -top-10 -right-10 text-[var(--accent-primary)]/5 w-64 h-64 -rotate-12" />
         

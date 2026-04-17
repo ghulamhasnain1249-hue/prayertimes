@@ -267,11 +267,12 @@ export default function App() {
                     setLocationName={setLocationName} 
                     location={location} 
                     locationName={locationName}
+                    onClose={() => setActiveTab('prayer')}
                   />
                 )}
-                {activeTab === 'sun' && <SunTab date={date} location={location} />}
-                {activeTab === 'moon' && <MoonTab date={date} location={location} />}
-                {activeTab === 'qibla' && <QiblaTab location={location} />}
+                {activeTab === 'sun' && <SunTab date={date} location={location} onClose={() => setActiveTab('prayer')} />}
+                {activeTab === 'moon' && <MoonTab date={date} location={location} onClose={() => setActiveTab('prayer')} />}
+                {activeTab === 'qibla' && <QiblaTab location={location} onClose={() => setActiveTab('prayer')} />}
                 {activeTab === 'themes' && (
                   <ThemesTab 
                     currentTheme={theme} 
@@ -279,7 +280,7 @@ export default function App() {
                     onClose={() => setActiveTab('prayer')}
                   />
                 )}
-                {activeTab === 'author' && <AuthorTab />}
+                {activeTab === 'author' && <AuthorTab onClose={() => setActiveTab('prayer')} />}
               </div>
             )}
           </div>

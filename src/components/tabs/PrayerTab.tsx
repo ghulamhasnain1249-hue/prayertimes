@@ -68,7 +68,7 @@ export function PrayerTab({
   return (
     <div className="flex flex-col min-h-full relative bg-[var(--bg-color)]">
       {/* Scrollable Hero Section */}
-      <section className="relative h-[55vh] min-h-[450px] w-full z-10 shrink-0">
+      <section className="relative min-h-[580px] sm:h-[55vh] sm:min-h-[450px] w-full z-10 shrink-0">
         <div 
           className="absolute inset-0 bg-cover bg-center"
           style={{ backgroundImage: `url('https://images.unsplash.com/photo-1591604129939-f1efa4d9f7fa?auto=format&fit=crop&q=80&w=1920')` }}
@@ -100,9 +100,30 @@ export function PrayerTab({
             </div>
           </div>
 
-          <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-12 px-4 pb-10">
+          <div className="flex-1 flex flex-col-reverse sm:flex-row items-center justify-center gap-8 sm:gap-12 px-4 pb-12">
+            {/* Meta Info */}
+            <div className="text-center sm:text-right space-y-3 sm:space-y-4">
+              <div className="space-y-0.5 sm:space-y-1">
+                <div className="flex items-center justify-center sm:justify-end gap-2 text-sm sm:text-base font-bold text-[var(--accent-gold)]">
+                  {hijriDate.day} {hijriDate.monthName} {hijriDate.year} <Moon size={16} className="sm:w-[18px] sm:h-[18px] fill-current" />
+                </div>
+                <div className="text-[10px] sm:text-xs font-semibold text-white/50 tracking-wide uppercase">
+                  {format(date, 'EEEE, dd MMMM yyyy')}
+                </div>
+              </div>
+              
+              <div className="pt-3 sm:pt-4 border-t border-white/10">
+                <div className="flex items-center justify-center sm:justify-end gap-2 text-sm sm:text-base font-black">
+                  {locationName.split(',')[0]} <MapPin size={16} className="sm:w-[18px] sm:h-[18px] text-[var(--accent-primary)]" />
+                </div>
+                <div className="text-[9px] sm:text-[10px] text-white/30 font-bold uppercase tracking-widest mt-0.5 sm:mt-1">
+                  {locationParams.lat.toFixed(4)}°N • {locationParams.lon.toFixed(4)}°E
+                </div>
+              </div>
+            </div>
+
             {/* Circular Progress */}
-            <div className="relative flex items-center justify-center w-64 h-64 sm:w-72 sm:h-72 shrink-0 transition-all duration-700">
+            <div className="relative flex items-center justify-center w-56 h-56 sm:w-72 sm:h-72 shrink-0 transition-all duration-700">
               <svg className="w-full h-full -rotate-90" viewBox="0 0 200 200">
                 <circle 
                   className="text-white/5" 
@@ -134,27 +155,6 @@ export function PrayerTab({
                 <span className="text-3xl sm:text-4xl font-mono font-black tabular-nums text-[var(--accent-primary)] drop-shadow-[0_0_15px_rgba(56,189,248,0.4)]">
                    {String(hours).padStart(2, '0')}:{String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
                 </span>
-              </div>
-            </div>
-
-            {/* Meta Info */}
-            <div className="text-center sm:text-right space-y-4">
-              <div className="space-y-1">
-                <div className="flex items-center justify-center sm:justify-end gap-2 text-base font-bold text-[var(--accent-gold)]">
-                  {hijriDate.day} {hijriDate.monthName} {hijriDate.year} <Moon size={18} className="fill-current" />
-                </div>
-                <div className="text-xs font-semibold text-white/50 tracking-wide uppercase">
-                  {format(date, 'EEEE, dd MMMM yyyy')}
-                </div>
-              </div>
-              
-              <div className="pt-4 border-t border-white/10">
-                <div className="flex items-center justify-center sm:justify-end gap-2 text-base font-black">
-                  {locationName.split(',')[0]} <MapPin size={18} className="text-[var(--accent-primary)]" />
-                </div>
-                <div className="text-[10px] text-white/30 font-bold uppercase tracking-widest mt-1">
-                  {locationParams.lat.toFixed(4)}°N • {locationParams.lon.toFixed(4)}°E
-                </div>
               </div>
             </div>
           </div>

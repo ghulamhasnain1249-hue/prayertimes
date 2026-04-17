@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, MapPin, RefreshCw } from 'lucide-react';
+import { Search, MapPin, RefreshCw, X } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { LocationParams } from '../../lib/prayer/engine';
 import { ManualInput } from '../common/DataDisplay';
@@ -9,13 +9,16 @@ interface LocationTabProps {
   setLocationName: (n: string) => void;
   location: LocationParams | null;
   locationName: string | null;
+  onClose?: () => void;
 }
 
-export function LocationTab({ setLocation, setLocationName, location, locationName }: LocationTabProps) {
+export function LocationTab({ setLocation, setLocationName, location, locationName, onClose }: LocationTabProps) {
   const [search, setSearch] = useState('');
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [isManual, setIsManual] = useState(false);
+  
+  // ... rest of state and effects ...
 
   useEffect(() => {
     const delayDebounceFn = setTimeout(() => {
@@ -100,7 +103,15 @@ export function LocationTab({ setLocation, setLocationName, location, locationNa
   };
 
   return (
-    <div className="panel-card p-10 space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700">
+    <div className="panel-card p-10 space-y-10 animate-in fade-in slide-in-from-bottom-6 duration-700 relative">
+      {onClose && (
+        <button 
+          onClick={onClose}
+          className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-[var(--text-dim)]"
+        >
+          <X size={20} />
+        </button>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start gap-6">
         <div className="space-y-1">
           <h3 className="text-3xl font-black tracking-tighter text-[var(--text-main)] italic uppercase">Spatial Positioning</h3>

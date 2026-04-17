@@ -1,15 +1,23 @@
 import React, { useMemo } from 'react';
-import { Moon } from 'lucide-react';
+import { Moon, X } from 'lucide-react';
 import { LocationParams } from '../../lib/prayer/engine';
 import { getApparentMoonData } from '../../lib/astronomy/apparent';
 import { DataRow } from '../common/DataDisplay';
 
-export function MoonTab({ date, location }: { date: Date, location: LocationParams }) {
+export function MoonTab({ date, location, onClose }: { date: Date, location: LocationParams, onClose?: () => void }) {
   const data = useMemo(() => getApparentMoonData(date, location.lat, location.lon), [date, location]);
   
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
       <div className="panel-card p-12 relative overflow-hidden">
+        {onClose && (
+          <button 
+            onClick={onClose}
+            className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-[var(--text-dim)] z-30"
+          >
+            <X size={20} />
+          </button>
+        )}
         <div className="absolute top-0 right-0 p-8 opacity-5">
            <Moon size={120} />
         </div>

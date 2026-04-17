@@ -1,14 +1,22 @@
 import React, { useMemo } from 'react';
-import { Compass } from 'lucide-react';
+import { Compass, X } from 'lucide-react';
 import { LocationParams } from '../../lib/prayer/engine';
 import { calculateQibla } from '../../lib/astronomy/coordinates';
 
-export function QiblaTab({ location }: { location: LocationParams }) {
+export function QiblaTab({ location, onClose }: { location: LocationParams, onClose?: () => void }) {
   const qibla = useMemo(() => calculateQibla(location.lat, location.lon), [location]);
   
   return (
-    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
+    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700 relative">
       <div className="panel-card p-12 text-center relative overflow-hidden">
+        {onClose && (
+          <button 
+            onClick={onClose}
+            className="absolute top-6 right-6 p-2 bg-white/5 hover:bg-white/10 rounded-full transition-colors text-[var(--text-dim)] z-30"
+          >
+            <X size={20} />
+          </button>
+        )}
         <Compass className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[var(--accent-primary)]/5 w-80 h-80 -z-10 animate-spin-slow" strokeWidth={1} />
         
         <h3 className="text-3xl font-black tracking-tighter text-[var(--text-main)] mb-2 italic uppercase">Qibla Orientation</h3>
