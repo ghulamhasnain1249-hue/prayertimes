@@ -21,14 +21,16 @@ export default defineConfig(({mode}) => {
           display: 'standalone',
           icons: [
             {
-              src: 'https://picsum.photos/192/192',
-              sizes: '192x192',
-              type: 'image/png'
+              src: 'pwa-icon.svg',
+              sizes: '512x512',
+              type: 'image/svg+xml',
+              purpose: 'any'
             },
             {
-              src: 'https://picsum.photos/512/512',
+              src: 'pwa-icon.svg',
               sizes: '512x512',
-              type: 'image/png'
+              type: 'image/svg+xml',
+              purpose: 'maskable'
             }
           ]
         }
